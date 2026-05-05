@@ -17,15 +17,31 @@ const appState = {
   adminDayIndex: 0
 };
 
+async function sendSalesReport(payload) {
+  try {
+    const response = await fetch('http://localhost:3000/send-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 const elements = {
   hero: document.getElementById('hero'),
   appShell: document.getElementById('appShell'),
   loginPin: document.getElementById('loginPin'),
   loginButton: document.getElementById('loginButton'),
   loginError: document.getElementById('loginError'),
+  sidebar: document.getElementById('sidebar'),
   sidebarMenu: document.getElementById('sidebarMenu'),
   sidebarRole: document.getElementById('sidebarRole'),
   mainContent: document.getElementById('mainContent'),
+  hamburgerButton: document.getElementById('hamburgerButton'),
   logoutButton: document.getElementById('logoutButton'),
   toast: document.getElementById('toast')
 };
@@ -99,9 +115,14 @@ function saveData() {
 function bindEvents() {
   elements.loginButton.addEventListener('click', handleLogin);
   elements.logoutButton.addEventListener('click', handleLogout);
+  elements.hamburgerButton.addEventListener('click', toggleSidebar);
   elements.loginPin.addEventListener('keydown', event => {
     if (event.key === 'Enter') handleLogin();
   });
+}
+
+function toggleSidebar() {
+  elements.sidebar.classList.toggle('open');
 }
 
 function handleLogin() {

@@ -7,6 +7,7 @@
   "scripts": {
     "start": "electron .",
     "serve": "http-server -p 8080 -c-1",
+    "server": "node backend/server.js",
     "dist": "electron-builder --win --x64"
   },
   "keywords": [
