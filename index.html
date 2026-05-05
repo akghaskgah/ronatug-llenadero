@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ronatug</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page" id="page">
+    <section class="hero" id="hero">
+      <div class="hero-card">
+        <div class="brand">
+          <h1>Ronatug</h1>
+          <p>Sistema de Gestión de Botellas de Agua</p>
+        </div>
+        <div class="login-panel">
+          <h2>Ingrese su PIN</h2>
+          <div class="login-field">
+            <input type="password" id="loginPin" placeholder="Ingrese su clave" maxlength="6" />
+          </div>
+          <div class="hint">Empleado: 1234 | Admin: 3121</div>
+          <button id="loginButton" class="primary-btn">Iniciar Sesión</button>
+          <div id="loginError" class="message error"></div>
+        </div>
+      </div>
+    </section>
+
+    <main class="app-shell hidden" id="appShell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <span class="sidebar-logo">💧</span>
+          <div>
+            <h2>Ronatug</h2>
+            <p id="sidebarRole">Panel</p>
+          </div>
+        </div>
+        <nav class="menu" id="sidebarMenu"></nav>
+        <button id="logoutButton" class="secondary-btn logout-btn">Cerrar Sesión</button>
+      </aside>
+
+      <section class="content-area">
+        <div id="toast" class="toast hidden"></div>
+        <div id="mainContent"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
