@@ -1,52 +1,62 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ronatug</title>
+  <meta name="description" content="Aplicación web de inventario y pedidos con Supabase" />
+  <title>Gestión Supabase</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page" id="page">
-    <section class="hero" id="hero">
-      <div class="hero-card">
-        <div class="brand">
-          <h1>Ronatug</h1>
-          <p>Sistema de Gestión de Botellas de Agua</p>
-        </div>
-        <div class="login-panel">
-          <h2>Ingrese su PIN</h2>
-          <div class="login-field">
-            <input type="password" id="loginPin" placeholder="Ingrese su clave" maxlength="6" />
-          </div>
-          <div class="hint">Empleado: 1234 | Admin: 3121</div>
-          <button id="loginButton" class="primary-btn">Iniciar Sesión</button>
-          <div id="loginError" class="message error"></div>
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <h1>Acceso</h1>
+      <div class="auth-toggle">
+        <button id="signInToggle" class="toggle-button active">Ingresar</button>
+        <button id="signUpToggle" class="toggle-button">Registrar</button>
+      </div>
+      <div id="authMessage" class="auth-message"></div>
+      <div id="signInForm" class="auth-form">
+        <label>Email</label>
+        <input id="signinEmail" type="email" autocomplete="email" />
+        <label>Contraseña</label>
+        <input id="signinPassword" type="password" autocomplete="current-password" />
+        <button id="signInButton" class="primary-btn">Ingresar</button>
+      </div>
+      <div id="signUpForm" class="auth-form hidden">
+        <label>Nombre completo</label>
+        <input id="signupName" type="text" autocomplete="name" />
+        <label>Email</label>
+        <input id="signupEmail" type="email" autocomplete="email" />
+        <label>Contraseña</label>
+        <input id="signupPassword" type="password" autocomplete="new-password" />
+        <button id="signUpButton" class="primary-btn">Registrar</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="app-shell hidden" id="appShell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div>
+          <h2>Panel Supabase</h2>
+          <p id="userEmail"></p>
         </div>
       </div>
-    </section>
-
-    <main class="app-shell hidden" id="appShell">
-      <button id="hamburgerButton" class="hamburger-btn">☰</button>
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-          <span class="sidebar-logo">💧</span>
-          <div>
-            <h2>Ronatug</h2>
-            <p id="sidebarRole">Panel</p>
-          </div>
-        </div>
-        <nav class="menu" id="sidebarMenu"></nav>
-        <button id="logoutButton" class="secondary-btn logout-btn">Cerrar Sesión</button>
-      </aside>
-
-      <section class="content-area">
-        <div id="toast" class="toast hidden"></div>
-        <div id="mainContent"></div>
-      </section>
+      <nav class="sidebar-menu">
+        <button data-view="dashboard" class="sidebar-item active">Inicio</button>
+        <button data-view="products" class="sidebar-item">Productos</button>
+        <button data-view="orders" class="sidebar-item">Pedidos</button>
+        <button data-view="profile" class="sidebar-item">Perfil</button>
+      </nav>
+      <button id="signOutButton" class="secondary-btn">Cerrar Sesión</button>
+    </aside>
+    <main class="main-content">
+      <div id="toast" class="toast hidden"></div>
+      <div id="appContent"></div>
     </main>
-  </div>
+  </section>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
