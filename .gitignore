@@ -379,6 +379,9 @@ ASALocalRun/
 # MSBuild Binary and Structured Log
 *.binlog
 
+# Ignore nested local repository
+ronatug-llenadero-/
+
 # Local environment files and editor settings
 .env.local
 android/.idea/

@@ -1,14 +1,9 @@
 {
   "name": "ronatug",
-  "productName": "Ronatug",
   "version": "1.0.0",
   "description": "Sistema de Gestión de Botellas de Agua",
-  "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "serve": "http-server www -p 8081 -c-1",
-    "server": "node backend/server.js",
-    "dist": "electron-builder --win --x64"
+    "serve": "http-server www -p 8081 -c-1"
   },
   "keywords": [
     "water",
@@ -17,37 +12,7 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.105.4",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "nodemailer": "^6.9.6",
-    "xlsx": "^0.18.5"
-  },
   "devDependencies": {
-    "@capacitor/android": "^8.3.1",
-    "@capacitor/cli": "^8.3.1",
-    "@capacitor/core": "^8.3.1",
-    "electron": "^26.4.0",
-    "electron-builder": "^24.6.0",
     "http-server": "^14.1.1"
-  },
-  "build": {
-    "appId": "com.ronatug.manager",
-    "productName": "Ronatug",
-    "files": [
-      "**/*",
-      "!node_modules/*",
-      "!**/node_modules/*",
-      "!package-lock.json"
-    ],
-    "win": {
-      "target": [
-        "nsis",
-        "zip"
-      ]
-    }
   }
 }
