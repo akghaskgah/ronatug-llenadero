@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Panel de ventas y gastos de Ronatug para empleados y administración." />
+  <title>Ronatug</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body onpaste="window.handleProductImagePaste && window.handleProductImagePaste(event)">
+  <div class="page" id="page">
+    <section class="hero" id="hero">
+      <div class="hero__card">
+        <div class="hero__brand">
+          <h1>Ronatug</h1>
+          <p>Sistema de Gestión de Botellas de Agua</p>
+        </div>
+        <div class="login__panel">
+          <h2>Ingrese su PIN</h2>
+          <div class="login__field">
+            <input type="password" id="loginPin" placeholder="Ingrese su clave" maxlength="6" />
+          </div>
+          <div class="hint">Empleado: 1234 | Admin: 3121</div>
+          <button id="loginButton" class="button--primary">Iniciar Sesión</button>
+          <div id="loginError" class="message--error"></div>
+        </div>
+      </div>
+    </section>
+
+    <main class="app-shell hidden" id="appShell">
+      <button id="hamburgerButton" class="hamburger-btn">☰</button>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__brand">
+          <span class="sidebar__logo">💧</span>
+          <div>
+            <h2>Ronatug</h2>
+            <p id="sidebarRole">Panel</p>
+          </div>
+        </div>
+        <nav class="sidebar__menu" id="sidebarMenu"></nav>
+        <button id="logoutButton" class="button--secondary sidebar__logout-btn">Cerrar Sesión</button>
+      </aside>
+
+      <section class="content-area">
+        <div id="toast" class="toast hidden"></div>
+        <div id="adminDebugPanel" class="admin-debug-panel hidden"></div>
+        <div id="mainContent"></div>
+        <div id="productEditModal" class="product-edit-modal hidden"></div>
+        <div id="deleteConfirmModal" class="delete-confirm-modal hidden"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

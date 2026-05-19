@@ -1,83 +1,135 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } = require('./supabaseClient');
+const nodemailer = require('nodemailer');
+const supabase = require('./supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'Imagenes';
 
 app.use(cors());
-app.use(express.json({ limit: '20mb' }));
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.json({ limit: '25mb' }));
 
-function sendUnauthorized(res) {
-  return res.status(401).json({ success: false, error: 'Unauthorized' });
-}
-
-async function authenticateRequest(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return sendUnauthorized(res);
-  }
-
-  const accessToken = authHeader.split(' ')[1];
-  const { data, error } = await supabase.auth.getUser(accessToken);
-  if (error || !data?.user) {
-    return sendUnauthorized(res);
-  }
-
-  req.user = data.user;
-  next();
-}
-
-app.get('/config', (req, res) => {
-  return res.json({ supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY });
-});
-
-app.get('/profile', authenticateRequest, async (req, res) => {
+app.get('/state', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, full_name, role, created_at')
-      .eq('id', req.user.id)
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'app_state')
       .single();
 
     if (error && error.code !== 'PGRST116') {
       return res.status(500).json({ success: false, error: error.message });
     }
 
-    if (!data) {
-      return res.json({ success: true, profile: { id: req.user.id, email: req.user.email, full_name: null, role: 'user' } });
-    }
-
-    return res.json({ success: true, profile: data });
+    const appState = data?.value ? JSON.parse(data.value) : null;
+    return res.json({ success: true, appState });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.post('/profiles', authenticateRequest, async (req, res) => {
+app.put('/state', async (req, res) => {
   try {
-    const { full_name } = req.body;
+    const { appState } = req.body;
+    if (!appState) {
+      return res.status(400).json({ success: false, error: 'Missing appState' });
+    }
+
     const payload = {
-      id: req.user.id,
-      email: req.user.email,
-      full_name: full_name || null,
-      role: 'user'
+      key: 'app_state',
+      value: JSON.stringify(appState),
+      updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(payload, { onConflict: 'id' })
-      .select()
-      .single();
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(payload, { onConflict: 'key' });
 
     if (error) {
       return res.status(500).json({ success: false, error: error.message });
     }
 
-    return res.json({ success: true, profile: data });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+const WORK_DAYS_FALLBACK_KEY = 'work_days_fallback';
+
+async function getFallbackWorkDays() {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', WORK_DAYS_FALLBACK_KEY)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+
+  return data?.value || [];
+}
+
+async function saveFallbackWorkDays(workDays) {
+  const payload = {
+    key: WORK_DAYS_FALLBACK_KEY,
+    value: workDays,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert(payload, { onConflict: 'key' });
+
+  if (error) {
+    throw error;
+  }
+
+  return workDays;
+}
+
+function isSchemaError(error) {
+  return error?.code === 'PGRST204' || error?.code === 'PGRST205';
+}
+
+function isWorkDayInsertError(error) {
+  return isSchemaError(error) || error?.code === '23503' || error?.code === '22P02';
+}
+
+app.post('/upload-image', async (req, res) => {
+  try {
+    const { fileName, fileBase64, bucket, contentType } = req.body;
+    if (!fileName || !fileBase64) {
+      return res.status(400).json({ success: false, error: 'fileName and fileBase64 are required' });
+    }
+
+    const targetBucket = bucket || STORAGE_BUCKET;
+    const key = `product-images/${Date.now()}-${fileName}`;
+    const buffer = Buffer.from(fileBase64, 'base64');
+
+    const { error: uploadError } = await supabase.storage
+      .from(targetBucket)
+      .upload(key, buffer, {
+        contentType: contentType || 'application/octet-stream',
+        upsert: false
+      });
+
+    if (uploadError) {
+      return res.status(500).json({ success: false, error: uploadError.message });
+    }
+
+    const { data: publicUrlData, error: publicUrlError } = supabase.storage
+      .from(targetBucket)
+      .getPublicUrl(key);
+
+    if (publicUrlError) {
+      return res.status(500).json({ success: false, error: publicUrlError.message });
+    }
+
+    return res.json({ success: true, publicUrl: publicUrlData.publicUrl });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -100,19 +152,27 @@ app.get('/products', async (req, res) => {
   }
 });
 
-app.post('/products', authenticateRequest, async (req, res) => {
+app.post('/products', async (req, res) => {
   try {
-    const { name, description, price, stock, image_url } = req.body;
-    if (!name || price == null || stock == null) {
-      return res.status(400).json({ success: false, error: 'Missing required product data' });
+    const product = req.body;
+    if (!product || !product.id || !product.name) {
+      return res.status(400).json({ success: false, error: 'Missing product id or name' });
     }
 
     const payload = {
-      name: name.trim(),
-      description: description || null,
-      price: Number(price),
-      stock: Number(stock),
-      image_url: image_url || null
+      id: product.id,
+      sku: product.sku || null,
+      name: product.name,
+      description: product.description || null,
+      type: product.type || 'other',
+      price_bs: product.priceBs || 0,
+      stock: product.stock || 0,
+      iva_enabled: !!product.ivaEnabled,
+      is_active: product.isActive !== false,
+      image_url: product.imageUrl || null,
+      image_storage_path: product.imageStoragePath || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const { data, error } = await supabase
@@ -131,20 +191,25 @@ app.post('/products', authenticateRequest, async (req, res) => {
   }
 });
 
-app.put('/products/:id', authenticateRequest, async (req, res) => {
+app.put('/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, stock, image_url } = req.body;
-    if (!name || price == null || stock == null) {
-      return res.status(400).json({ success: false, error: 'Missing required product data' });
+    const product = req.body;
+    if (!product || !product.name) {
+      return res.status(400).json({ success: false, error: 'Missing product data' });
     }
 
     const payload = {
-      name: name.trim(),
-      description: description || null,
-      price: Number(price),
-      stock: Number(stock),
-      image_url: image_url || null,
+      sku: product.sku || null,
+      name: product.name,
+      description: product.description || null,
+      type: product.type || 'other',
+      price_bs: product.priceBs || 0,
+      stock: product.stock || 0,
+      iva_enabled: !!product.ivaEnabled,
+      is_active: product.isActive !== false,
+      image_url: product.imageUrl || null,
+      image_storage_path: product.imageStoragePath || null,
       updated_at: new Date().toISOString()
     };
 
@@ -165,11 +230,120 @@ app.put('/products/:id', authenticateRequest, async (req, res) => {
   }
 });
 
-app.delete('/products/:id', authenticateRequest, async (req, res) => {
+app.get('/work_days', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('work_days')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({ success: true, workDays: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/work_days', async (req, res) => {
+  try {
+    const day = req.body;
+    if (!day || !day.id || !day.date) {
+      return res.status(400).json({ success: false, error: 'Missing work day id or date' });
+    }
+
+    const payload = {
+      id: day.id,
+      date: day.date,
+      status: day.status || 'open',
+      sales: day.sales || [],
+      expenses: day.expenses || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('work_days')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({ success: true, workDay: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/work_days/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const day = req.body;
+    if (!day) {
+      return res.status(400).json({ success: false, error: 'Missing work day data' });
+    }
+
+    const payload = {
+      date: day.date,
+      status: day.status || 'open',
+      sales: day.sales || [],
+      expenses: day.expenses || [],
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('work_days')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({ success: true, workDay: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/work_days/:id/close', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const payload = {
+      status: 'closed',
+      updated_at: new Date().toISOString(),
+      closed_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('work_days')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({ success: true, workDay: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/work_days/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { error } = await supabase
-      .from('products')
+      .from('work_days')
       .delete()
       .eq('id', id);
 
@@ -183,88 +357,34 @@ app.delete('/products/:id', authenticateRequest, async (req, res) => {
   }
 });
 
-app.get('/orders', authenticateRequest, async (req, res) => {
+app.post('/send-report', async (req, res) => {
+  const { emailConfig, reportData } = req.body;
+
   try {
-    const profileResponse = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', req.user.id)
-      .single();
+    const transporter = nodemailer.createTransport({
+      host: emailConfig.smtpHost,
+      port: emailConfig.smtpPort,
+      secure: emailConfig.secure,
+      auth: {
+        user: emailConfig.smtpUser,
+        pass: emailConfig.smtpPassword
+      }
+    });
 
-    const isAdmin = profileResponse.data?.role === 'admin';
-    const query = supabase
-      .from('orders')
-      .select('id, product_id, quantity, total, notes, created_at, products(name, price), profiles(full_name, email)');
+    const mailOptions = {
+      from: emailConfig.fromAddress,
+      to: emailConfig.toAddress,
+      subject: 'Reporte de Ventas - Ronatug',
+      text: `Reporte: ${JSON.stringify(reportData, null, 2)}`
+    };
 
-    if (!isAdmin) {
-      query.eq('user_id', req.user.id);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
-    return res.json({ success: true, orders: data });
+    const info = await transporter.sendMail(mailOptions);
+    res.json({ success: true, info });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
-});
-
-app.post('/orders', authenticateRequest, async (req, res) => {
-  try {
-    const { product_id, quantity, notes } = req.body;
-    if (!product_id || quantity == null) {
-      return res.status(400).json({ success: false, error: 'Missing product_id or quantity' });
-    }
-
-    const productResponse = await supabase
-      .from('products')
-      .select('id, name, price, stock')
-      .eq('id', product_id)
-      .single();
-
-    if (productResponse.error || !productResponse.data) {
-      return res.status(400).json({ success: false, error: 'Product not found' });
-    }
-
-    const product = productResponse.data;
-    const orderQuantity = Number(quantity);
-    const total = Number(product.price) * orderQuantity;
-    const remainingStock = Math.max(0, Number(product.stock) - orderQuantity);
-
-    const { data, error } = await supabase
-      .from('orders')
-      .insert({
-        product_id,
-        user_id: req.user.id,
-        quantity: orderQuantity,
-        total,
-        notes: notes || null
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
-    await supabase
-      .from('products')
-      .update({ stock: remainingStock, updated_at: new Date().toISOString() })
-      .eq('id', product_id);
-
-    return res.json({ success: true, order: data });
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/*path', (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`Supabase backend running on port ${PORT}`);
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
